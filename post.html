@@ -44,7 +44,11 @@ form.addEventListener("submit", async (e)=>{
   const body=ta.value.trim();
   if(!body) return;
   const { error }=await supabase.from("posts").insert({ room, body });
-  if(error){ console.error(error); alert("送信失敗"); return; }
+if (error) {
+  console.error(error);
+  alert(`送信失敗: ${error.message}\n(code: ${error.code ?? ""})`);
+  return;
+}
   ta.value=""; ta.focus();
 });
 
