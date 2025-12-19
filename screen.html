@@ -1,128 +1,274 @@
-<!doctype html><html lang="ja"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>スクリーン</title>
-<style>
-:root{--bg:#07080c;--paper:#f6f2ea;--ink:#141414;--muted:#5b5b5b;--edge:#e6dccf;}
-body{margin:0;background:radial-gradient(1200px 600px at 20% 10%,rgba(255,255,255,.06),transparent 50%),
-radial-gradient(900px 500px at 80% 30%,rgba(255,255,255,.04),transparent 50%),var(--bg);
-color:var(--ink);font-family:"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho","MS PMincho",serif;}
-.wrap{max-width:980px;margin:0 auto;padding:22px}
-.frame{background:var(--paper);border:1px solid var(--edge);border-radius:18px;padding:18px;box-shadow:0 18px 70px rgba(0,0,0,.45);display:flex;gap:16px;align-items:stretch}
-.side{width:210px;display:flex;flex-direction:column;gap:10px;padding:10px 10px 10px 14px;border-right:1px solid var(--edge)}
-.kicker{font-size:12px;color:var(--muted);letter-spacing:.06em}
-.note{font-size:12px;color:var(--muted);line-height:1.6}
-.stage{flex:1;min-height:420px;display:flex;justify-content:center;align-items:center;padding:10px 8px;overflow:auto}
-#display{writing-mode:vertical-rl;text-orientation:mixed;letter-spacing:.06em;line-height:1.9;font-size:22px;
-max-height:520px;padding:12px 16px;white-space:pre-wrap;word-break:break-word;border-radius:14px;
-background:rgba(255,255,255,.35);border:1px solid rgba(20,20,20,.08)}
-.fade-in{animation:fadeIn 320ms ease-out both}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px);filter:blur(2px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
-@media (max-width:760px){.frame{flex-direction:column}.side{width:auto;border-right:none;border-bottom:1px solid var(--edge)}#display{font-size:18px;max-height:460px}}
-</style></head><body>
-<div class="wrap">
-  <div class="frame" aria-live="polite">
-    <div class="side">
-      <div class="kicker">スクリーン</div>
-      <div class="note">room: <b id="roomView"></b></div>
-      <div class="note">mode: <b id="modeView"></b> / interval: <b id="intervalView"></b>s</div>
-      <div class="note">自動は「開始時刻×秒数」から計算して切替。手動は主催者が選択。</div>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>スクリーン</title>
+  <style>
+    :root{
+      --bg:#07080c;
+      --paper:#f6f2ea;
+      --ink:#141414;
+      --muted:#5b5b5b;
+      --edge:#e6dccf;
+    }
+    body{
+      margin:0;
+      background:
+        radial-gradient(1200px 600px at 20% 10%, rgba(255,255,255,.06), transparent 50%),
+        radial-gradient(900px 500px at 80% 30%, rgba(255,255,255,.04), transparent 50%),
+        var(--bg);
+      color: var(--ink);
+      font-family: "Noto Serif JP","Hiragino Mincho ProN","Yu Mincho","MS PMincho",serif;
+    }
+    .wrap{ max-width: 980px; margin: 0 auto; padding: 22px; }
+    .frame{
+      background: var(--paper);
+      border: 1px solid var(--edge);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 18px 70px rgba(0,0,0,.45);
+      display:flex;
+      gap: 16px;
+      align-items: stretch;
+    }
+    .side{
+      width: 230px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding: 10px 10px 10px 14px;
+      border-right: 1px solid var(--edge);
+    }
+    .kicker{ font-size: 12px; color: var(--muted); letter-spacing:.06em; }
+    .note{ font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    .stage{
+      flex: 1;
+      min-height: 420px;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding: 10px 8px;
+      overflow:auto;
+    }
+
+    /* 縦書き本文 */
+    #display{
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      letter-spacing: .06em;
+      line-height: 1.9;
+      font-size: 22px;
+      max-height: 520px;
+      padding: 12px 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-radius: 14px;
+      background: rgba(255,255,255,.35);
+      border: 1px solid rgba(20,20,20,.08);
+    }
+
+    /* 更新時フェード */
+    .fade-in{ animation: fadeIn 320ms ease-out both; }
+    @keyframes fadeIn{
+      from{ opacity:0; transform: translateY(6px); filter: blur(2px); }
+      to{ opacity:1; transform: translateY(0); filter: blur(0); }
+    }
+
+    @media (max-width: 760px){
+      .frame{ flex-direction: column; }
+      .side{ width:auto; border-right:none; border-bottom: 1px solid var(--edge); }
+      #display{ font-size: 18px; max-height: 460px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="frame" aria-live="polite">
+      <div class="side">
+        <div class="kicker">スクリーン</div>
+        <div class="note">room: <b id="roomView"></b></div>
+        <div class="note">mode: <b id="modeView"></b></div>
+        <div class="note">interval: <b id="intervalView"></b>s</div>
+        <div class="note">自動は「開始時刻 × 秒数」から計算して切替。手動は主催者が選択。</div>
+      </div>
+
+      <div class="stage">
+        <div id="display" class="fade-in">（まだ投稿がありません）</div>
+      </div>
     </div>
-    <div class="stage"><div id="display" class="fade-in">（まだ投稿がありません）</div></div>
   </div>
-</div>
 
-<script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-const SUPABASE_URL="https://alrafntzbegnulyucwtk.supabase.co";
-const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFscmFmbnR6YmVnbnVseXVjd3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDcxNTcsImV4cCI6MjA4MTcyMzE1N30.rJbZe24fGME1xAXAs9W4fCjutZXMHT550UETW5MRyAQ";
-const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const qs=new URLSearchParams(location.search);
-const room=(qs.get("room")||"demo").slice(0,60);
-document.getElementById("roomView").textContent=room;
+    // ★ここを置き換え
+    const SUPABASE_URL = "https://alrafntzbegnulyucwtk.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFscmFmbnR6YmVnbnVseXVjd3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDcxNTcsImV4cCI6MjA4MTcyMzE1N30.rJbZe24fGME1xAXAs9W4fCjutZXMHT550UETW5MRyAQ";
 
-const display=document.getElementById("display");
-const modeView=document.getElementById("modeView");
-const intervalView=document.getElementById("intervalView");
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let posts=[];               // created_at asc
-let state=null;
-let lastAutoIndex=null;
+    const qs = new URLSearchParams(location.search);
+    const room = (qs.get("room") || "demo").slice(0, 60);
 
-function fadeText(text){
-  display.classList.remove("fade-in"); void display.offsetWidth;
-  display.textContent = text || "（空）";
-  display.classList.add("fade-in");
-}
+    document.getElementById("roomView").textContent = room;
 
-async function loadPosts(){
-  const { data, error } = await supabase
-    .from("posts")
-    .select("id, body, created_at")
-    .eq("room", room)
-    .order("created_at", { ascending: true });
-  if(error){ console.error(error); return; }
-  posts = data || [];
-}
+    const display = document.getElementById("display");
+    const modeView = document.getElementById("modeView");
+    const intervalView = document.getElementById("intervalView");
 
-async function loadState(){
-  const { data, error } = await supabase
-    .from("room_state")
-    .select("mode, interval_sec, manual_post_id, auto_started_at")
-    .eq("room", room)
-    .single();
-  if(error){ console.error(error); return; }
-  state = data;
-  modeView.textContent = state.mode;
-  intervalView.textContent = state.interval_sec;
-}
+    let posts = [];                 // created_at asc
+    let state = null;
 
-function renderFromState(){
-  if(!state) return;
-  if(posts.length === 0){ fadeText("（まだ投稿がありません）"); return; }
+    let lastAutoIndex = null;       // auto表示中のindex（点滅防止）
+    let lastManualPostId = null;    // manual表示中のpost_id（点滅防止）
+    let tickTimer = null;           // auto時だけ動かす
 
-  if(state.mode === "manual"){
-    lastAutoIndex = null;
-    if(!state.manual_post_id){ fadeText("（主催者が表示を選ぶまでお待ちください）"); return; }
-    const p = posts.find(x => x.id === state.manual_post_id);
-    fadeText(p ? p.body : "（指定された投稿が見つかりません）");
-    return;
-  }
+    function fadeText(text){
+      display.classList.remove("fade-in");
+      void display.offsetWidth; // reflowでアニメ再発火
+      display.textContent = text || "（空）";
+      display.classList.add("fade-in");
+    }
 
-  // auto
-  const started = state.auto_started_at ? Date.parse(state.auto_started_at) : null;
-  const interval = Math.max(3, Number(state.interval_sec || 10));
-  if(!started){ fadeText("（自動切替の開始待ち）"); return; }
+    async function loadPosts(){
+      const { data, error } = await supabase
+        .from("posts")
+        .select("id, body, created_at")
+        .eq("room", room)
+        .order("created_at", { ascending: true });
 
-  const t = Date.now() - started;
-  const idx = Math.floor(Math.max(0, t) / (interval * 1000)) % posts.length;
-  if(idx !== lastAutoIndex){
-    lastAutoIndex = idx;
-    fadeText(posts[idx].body);
-  }
-}
+      if (error) {
+        console.error(error);
+        return;
+      }
+      posts = data || [];
+    }
 
-await loadPosts();
-await loadState();
-renderFromState();
+    async function loadState(){
+      const { data, error } = await supabase
+        .from("room_state")
+        .select("mode, interval_sec, manual_post_id, auto_started_at")
+        .eq("room", room)
+        .single();
 
-// posts INSERT を購読 → リスト更新
-supabase.channel("posts-"+room)
-  .on("postgres_changes", { event:"INSERT", schema:"public", table:"posts", filter:`room=eq.${room}` }, async ()=>{
+      if (error) {
+        console.error(error);
+        return;
+      }
+      state = data;
+      modeView.textContent = state.mode;
+      intervalView.textContent = state.interval_sec;
+    }
+
+    function ensureTick(){
+      // autoの時だけ時間で切り替える必要がある
+      if (state?.mode === "auto") {
+        if (!tickTimer) tickTimer = setInterval(renderFromState, 250);
+      } else {
+        if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+      }
+    }
+
+    function renderFromState(){
+      if (!state) return;
+
+      if (posts.length === 0) {
+        // 状態に関わらず投稿がない時はこれだけ
+        if (lastManualPostId !== "__none__") {
+          lastManualPostId = "__none__";
+          lastAutoIndex = "__none__";
+          fadeText("（まだ投稿がありません）");
+        }
+        return;
+      }
+
+      // -------- 手動モード --------
+      if (state.mode === "manual") {
+        lastAutoIndex = null; // autoの記録は消す
+
+        // 表示ID未指定
+        if (!state.manual_post_id) {
+          if (lastManualPostId !== null) {
+            lastManualPostId = null;
+            fadeText("（主催者が表示を選ぶまでお待ちください）");
+          }
+          return;
+        }
+
+        // ★同じIDなら再描画しない（点滅防止）
+        if (state.manual_post_id === lastManualPostId) return;
+
+        lastManualPostId = state.manual_post_id;
+
+        const p = posts.find(x => x.id === state.manual_post_id);
+        fadeText(p ? p.body : "（指定された投稿が見つかりません）");
+        return;
+      }
+
+      // -------- 自動モード --------
+      // manualの記録は消す
+      lastManualPostId = null;
+
+      const started = state.auto_started_at ? Date.parse(state.auto_started_at) : null;
+      const interval = Math.max(3, Number(state.interval_sec || 10));
+
+      if (!started) {
+        if (lastAutoIndex !== "__waiting__") {
+          lastAutoIndex = "__waiting__";
+          fadeText("（自動切替の開始待ち）");
+        }
+        return;
+      }
+
+      const t = Date.now() - started;
+      const idx = Math.floor(Math.max(0, t) / (interval * 1000)) % posts.length;
+
+      // ★同じindexなら再描画しない（点滅防止）
+      if (idx === lastAutoIndex) return;
+
+      lastAutoIndex = idx;
+      fadeText(posts[idx].body);
+    }
+
+    // 初期ロード
     await loadPosts();
+    await loadState();
+    ensureTick();
     renderFromState();
-  }).subscribe();
 
-// room_state UPDATE を購読 → 状態更新
-supabase.channel("state-"+room)
-  .on("postgres_changes", { event:"UPDATE", schema:"public", table:"room_state", filter:`room=eq.${room}` }, async (payload)=>{
-    state = payload.new;
-    modeView.textContent = state.mode;
-    intervalView.textContent = state.interval_sec;
-    lastAutoIndex = null;
-    renderFromState();
-  }).subscribe();
+    // posts の INSERT を購読 → 投稿配列を更新
+    supabase.channel("posts-" + room)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts", filter: `room=eq.${room}` },
+        async () => {
+          await loadPosts();
+          // 自動中は index が変わる可能性があるので、いったん再評価
+          lastAutoIndex = null;
+          renderFromState();
+        }
+      )
+      .subscribe();
 
-// autoは時間で切替なので、軽くtick（1秒）
-setInterval(renderFromState, 1000);
-</script></body></html>
+    // room_state の UPDATE を購読 → 状態を更新
+    supabase.channel("state-" + room)
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "room_state", filter: `room=eq.${room}` },
+        (payload) => {
+          state = payload.new;
+          modeView.textContent = state.mode;
+          intervalView.textContent = state.interval_sec;
+
+          // モードが変わったら再描画の基準をリセット
+          lastAutoIndex = null;
+          lastManualPostId = null;
+
+          ensureTick();
+          renderFromState();
+        }
+      )
+      .subscribe();
+  </script>
+</body>
+</html>
