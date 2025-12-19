@@ -1,0 +1,126 @@
+<!doctype html><html lang="ja"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>主催者</title>
+<style>
+:root{--bg:#0b0c10;--card:#151821;--text:#e9eef7;--muted:#9aa4b2;--line:#262b36;}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);}
+.wrap{max-width:980px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.label{font-size:12px;color:var(--muted);letter-spacing:.02em;margin-bottom:10px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input{border-radius:12px;border:1px solid var(--line);padding:10px 12px;background:#0f121a;color:var(--text)}
+button{border:1px solid var(--line);background:#1d2330;color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer}
+button:hover{filter:brightness(1.08)}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{border:1px solid var(--line);border-radius:12px;padding:12px;background:#0f121a;display:flex;gap:10px;justify-content:space-between;align-items:flex-start}
+.meta{font-size:12px;color:var(--muted)}
+.body{white-space:pre-wrap;word-break:break-word;line-height:1.6}
+.small{font-size:12px;color:var(--muted)}
+</style></head><body>
+<div class="wrap">
+  <section class="card">
+    <div class="label">主催者コントロール</div>
+    <div class="row small">
+      room: <b id="roomView"></b> / host_key: <span id="hkView"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input id="interval" type="number" min="3" max="300" value="10" style="width:120px" />
+      <button id="btnAuto">自動開始</button>
+      <button id="btnClear">画面クリア</button>
+      <button id="btnReload">一覧更新</button>
+    </div>
+    <div class="row small" style="margin-top:10px">
+      screen: <span id="screenLink"></span> / post: <span id="postLink"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">投稿一覧（クリックで手動表示）</div>
+    <div id="list" class="list"></div>
+  </section>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const SUPABASE_URL="https://alrafntzbegnulyucwtk.supabase.co";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFscmFmbnR6YmVnbnVseXVjd3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDcxNTcsImV4cCI6MjA4MTcyMzE1N30.rJbZe24fGME1xAXAs9W4fCjutZXMHT550UETW5MRyAQ";
+const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+const qs=new URLSearchParams(location.search);
+const room=(qs.get("room")||"demo").slice(0,60);
+const host_key=(qs.get("host_key")||"").slice(0,200);
+
+document.getElementById("roomView").textContent=room;
+document.getElementById("hkView").textContent=host_key ? "（設定済）" : "（未設定：URLに host_key を付けて開いてください）";
+
+const base = location.origin + location.pathname.replace(/[^/]+$/, "");
+document.getElementById("screenLink").textContent = base + "screen.html?room=" + encodeURIComponent(room);
+document.getElementById("postLink").textContent   = base + "post.html?room="   + encodeURIComponent(room);
+
+const listEl=document.getElementById("list");
+
+async function loadPosts(){
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, body, created_at")
+    .eq("room", room)
+    .order("created_at", { ascending: false }); // 新しい順に主催者は見やすい
+  if(error){ console.error(error); alert("一覧取得失敗"); return; }
+  renderList(data||[]);
+}
+
+function renderList(items){
+  listEl.innerHTML="";
+  if(items.length===0){
+    listEl.innerHTML = `<div class="small">（投稿がまだありません）</div>`;
+    return;
+  }
+  for(const it of items){
+    const div=document.createElement("div");
+    div.className="item";
+    div.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div class="meta">#${it.id} / ${new Date(it.created_at).toLocaleString()}</div>
+        <div class="body">${escapeHtml(it.body).slice(0,500)}${it.body.length>500?"…":""}</div>
+      </div>
+      <button data-id="${it.id}">表示</button>
+    `;
+    div.querySelector("button").addEventListener("click", ()=> setManual(it.id));
+    listEl.appendChild(div);
+  }
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+async function setManual(postId){
+  if(!host_key){ alert("host_key が必要です"); return; }
+  const { error } = await supabase.rpc("host_set_manual", { p_room: room, p_host_key: host_key, p_post_id: postId });
+  if(error){ console.error(error); alert("手動表示の更新に失敗（host_key確認）"); return; }
+}
+
+async function startAuto(){
+  if(!host_key){ alert("host_key が必要です"); return; }
+  const sec = Number(document.getElementById("interval").value || 10);
+  const { error } = await supabase.rpc("host_start_auto", { p_room: room, p_host_key: host_key, p_interval_sec: sec });
+  if(error){ console.error(error); alert("自動開始に失敗（host_key/秒数）"); return; }
+}
+
+async function clearScreen(){
+  if(!host_key){ alert("host_key が必要です"); return; }
+  const { error } = await supabase.rpc("host_clear", { p_room: room, p_host_key: host_key });
+  if(error){ console.error(error); alert("クリアに失敗"); return; }
+}
+
+document.getElementById("btnAuto").addEventListener("click", startAuto);
+document.getElementById("btnClear").addEventListener("click", clearScreen);
+document.getElementById("btnReload").addEventListener("click", loadPosts);
+
+// 参加者の新規投稿を購読して自動で一覧更新
+supabase.channel("posts-host-"+room)
+  .on("postgres_changes", { event:"INSERT", schema:"public", table:"posts", filter:`room=eq.${room}` }, loadPosts)
+  .subscribe();
+
+await loadPosts();
+</script></body></html>
